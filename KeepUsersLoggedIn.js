@@ -1,44 +1,48 @@
-/* ♻️ AUTH PERSISTENCE BLUEPRINT 
-   Purpose: Keeps user logged in after page refresh & syncs multiple tabs.
-*/
-
+// This block runs once when the app starts
 useEffect(() => {
   const readAuthFromStorage = () => {
-    // 1. Look for the "Big Folder" (Object)
+    // 1. Try to read the main data object
     const json = localStorage.getItem("cine_auth");
     if (json) {
       try {
         const parsed = JSON.parse(json);
         setIsLoggedIn(Boolean(parsed?.isLoggedIn));
         setUserEmail(parsed?.email || "");
-        return; 
-      } catch (err) { /* Data was broken, move to fallback */ }
+        return;
+      } catch (err) {}
     }
 
-    // 2. Look for "Small Notes" (Simple flags)
+    // 2. Backup: Check for simple login flags or email keys
     const simpleFlag = localStorage.getItem("isLoggedIn");
     const email = localStorage.getItem("userEmail") || localStorage.getItem("cine_user_email");
-    
-    if (simpleFlag === "true" || email) {
+    if (simpleFlag === "true") {
       setIsLoggedIn(true);
       setUserEmail(email || "");
       return;
     }
 
-    // 3. If nothing found, reset to Logged Out
+    // 3. Last resort: If email exists but no flag, still log them in
+    if (email) {
+      setIsLoggedIn(true);
+      setUserEmail(email);
+      return;
+    }
+
+    // 4. Default: No data found, user is logged out
     setIsLoggedIn(false);
     setUserEmail("");
   };
 
-  // Run immediately when page loads
   readAuthFromStorage();
 
-  // "Tab Talk": If I log out in Tab A, Tab B updates automatically
+  // This part listens for login/logout actions in OTHER browser tabs
   const onStorage = (e) => {
-    const keys = ["cine_auth", "isLoggedIn", "userEmail", "cine_user_email"];
-    if (keys.includes(e.key)) readAuthFromStorage();
+    if (["cine_auth", "isLoggedIn", "userEmail", "cine_user_email"].includes(e.key)) {
+      readAuthFromStorage();
+    }
   };
-
   window.addEventListener("storage", onStorage);
+
+  // Clean up the listener when the component is closed
   return () => window.removeEventListener("storage", onStorage);
 }, []);
